@@ -1,0 +1,544 @@
+---
+title: "Fellowship Vignettes"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.showtext = T, fig.retina = 1)
+```
+
+```{r libs}
+library(tidyverse)
+library(ggtext)  # for gg textbox
+library(patchwork)  # for composing vignette
+source(here::here("R", "col_palette.R"))
+```
+
+# Data 
+
+## Pies and timelines
+
+```{r load-pies-and-tls}
+knitr::knit(here::here("R", "pies_and_timelines.Rmd"), output = tempfile())
+```
+
+## Maps
+
+```{r load-pies-and-tls}
+knitr::knit(here::here("R", "maps.Rmd"), output = tempfile())
+```
+
+# Global params
+
+```{r theme}
+theme_text <- 
+  theme_void() + 
+  theme(   
+    line = element_blank(),
+    axis.text = element_blank(),
+    axis.line.x = element_blank()
+  )
+```
+
+```{r table-headers}
+txt.goal.head <-
+  ggplot(tibble(x = 1, y = 1,label = "")) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(5.5, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1,
+    hjust = 0.5, 
+    vjust = 0.5,
+    box.colour = NA
+    ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(plot.margin = margin(10,0,0,0))
+
+bottom_headers <- function(text) {
+  data <- tibble(x = 1, y = 1, label = text)
+  ggplot(data = data) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(8, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1,
+    box.colour = NA
+    ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(plot.margin = margin(0,0,0,0), 
+        panel.border = element_rect(size = .6, fill = NA, color = "grey60"))
+
+}
+
+txt.goal.h1 <-
+  bottom_headers("Fellow:")
+
+txt.goal.h2 <-
+  bottom_headers("Mentor:")
+
+txt.goal.h3 <-
+  bottom_headers("University:")
+
+```
+
+```{r table-questions}
+txt.goal <-
+  ggplot(tibble(x = 1, y = 1,label = "What was your goal for the fellowship?")) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(6, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1,
+    hjust = 0.55, vjust = 0.5,
+    box.colour = NA
+    ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(plot.margin = margin(0,0,0,0))
+
+
+txt.outcome <-
+  ggplot(tibble(x = 1, y = 1,label = "What did you get out of the fellowship?")) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(6, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1,
+    hjust = 0.55, vjust = 0.5,
+    box.colour = NA
+    ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(plot.margin = margin(0,0,0,0))
+
+```
+
+```{r plot-title-function}
+
+plot_title <- function(responce_text) {
+  data <- tibble(x = 1, y = 1, label = responce_text)
+  ggplot(data = data) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(24.5, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1.2,
+    hjust = 0.42, 
+    vjust = 0.5,
+    box.colour = NA
+  ) +
+  coord_cartesian(clip = "off")+
+  theme_text + 
+  theme(plot.margin = margin(0,0,10,0))
+
+}
+```
+
+```{r plot-logistics-function}
+
+plot_logistics <- function(responce_text) {
+  data <- tibble(x = 1, y = 1, label = responce_text)
+  ggplot(data = data) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(13, "lines"),
+    family = "sans",
+    color = "black",
+    lineheight = 1.2,
+    hjust = 0.49, 
+    vjust = 0.5,
+    box.colour = NA
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(plot.margin = margin(0,0,0,5))
+
+}
+```
+
+```{r plot-responce-function}
+
+plot_responces <- function(responce_text) {
+  data <- tibble(x = 1, y = 1, label = responce_text)
+  ggplot(data = data) +
+  geom_textbox(
+    aes(x, y, label = label),
+    width = unit(9, "lines"),
+    family = "sans",
+    color = "#737373",
+    lineheight = 1,
+    # vjust = 0,
+    box.colour = NA
+    ) +
+  coord_cartesian(clip = "off") +
+  theme_text + 
+  theme(
+    panel.border = element_rect(size = .6, fill = NA, color = "grey60"),
+    plot.margin = margin(0, 0, 0, 0)
+    )
+
+}
+```
+
+
+# Coatsal Processes
+
+```{r title}
+title <- 
+  plot_title(responce_text =
+  "<span style='font-size:16pt;color:#000000'>**Coastal Processes**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Coastal hazards such as erosion, flooding, and coastal storms are an increasing concern for Wisconsin’s coastal communities. Fellows engage with technical staff at local and state governments and interested coastal property owners to provide technical guidance on understanding and estimating the risk of these coastal hazards.</span>"
+  )
+```
+
+```{r logistics}
+
+logistics <- plot_logistics(
+  responce_text =
+  "<span style='font-size:12pt;color:#000000'>**Fellowship Logistics**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>All fellows stationed with Wisconsin Costal Management Program and Mentor 1, providing a continuous line of support and new expertise for key WCMP initiatives, like the new update of the Wisconsin Coastal Processes Manual.</span>"
+  ) 
+
+```
+
+```{r responces}
+
+txt.tl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"To understand the needs of stakeholders facing coastal hazards. This knowledge will help me better connect the latest hazards science to inform action and policy (F1).\"</span>")
+# txt.tl
+
+txt.tm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Assistance with the years-long effort and very heavy lift of updating the Wisconsin Coastal Processes Manual (M-F1,2,3,4).\"</span>")
+
+txt.tr <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"To add to the capacity of both WCMP and Sea Grant staff to tackle challenges related to Great Lakes water levels and other hazards.\"</span>")
+
+
+txt.bl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"The opportunity to pursue science communication that encourages informed decision making (F4).\" \"Relationships with local, state, federal and university partners in WI and across the Great Lakes (F1).\"</span>")
+
+txt.bm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"The expertise the fellows brought and their ability to work with scientists and experts throughout the writing, editing, and reviewing process is leading to what I think will be an incredible product (M-F1,2,3,4).\"</span>")
+
+txt.br <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Sea Grant has always had a great relationship with WCMP, but we’ve been able to leverage our efforts even better by having fellows with a presence in each office.\"</span>")
+
+```
+
+```{r panel}
+top <- 
+  title + p.map.cp + 
+  plot_layout(widths = c(0.7, .3))
+
+mid <- 
+  logistics + 
+  pie_plots %>% pull(plot) %>% pluck(4) + 
+  timeline_plots %>% pull(plot) %>% pluck(1) + 
+  plot_layout(widths = c(.4, .2, .3)) 
+
+bottom_head <- 
+  (txt.goal.head | txt.goal.h1 | txt.goal.h2 | txt.goal.h3) + 
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+bottom <- 
+  ((txt.goal / txt.outcome) | 
+    (txt.tl / txt.bl) |
+    (txt.tm / txt.bm) |
+    (txt.tr / txt.br)) +
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+panel <- 
+  top / mid / bottom_head / bottom + 
+  plot_layout(heights = c(.25, .2, .05, .5))
+
+panel
+
+```
+
+```{r save panel}
+
+path <- here::here("plots", "fig03_coastal")
+ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+
+```
+
+
+# Fish and water 
+
+```{r title}
+
+title <- 
+  plot_title(responce_text =
+  "<span style='font-size:16pt;color:#000000'>**Groundwater, Surface Water, & Fisheries**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Streams, rivers, and lakes in the Upper Midwest are affected by both climatic variability and groundwater withdrawals for irrigation. Fellows develop models and tools to help managers holistically evaluate the effects of groundwater withdrawal scenarios on surface water resources under variable climate scenarios.</span>"
+  )
+
+```
+
+```{r logistics}
+
+logistics <- plot_logistics(
+  responce_text =
+  "<span style='font-size:12pt;color:#000000'>**Fellowship Logistics**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Two fellows stationed within the DNR Water Use program with Mentor 1. One fellow stationed within DNR Fisheries Management program with Mentor 2. All three fellows work on separate but complementary projects. </span>"
+  )
+
+```
+
+```{r responces}
+
+txt.tl <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"Do impactful, actionable, and inclusive science using a really collaborative approach, rather than siloed science that sits on academic shelves (F7).\"</span>"
+    )
+
+txt.tm <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"Conduct high-quality research aimed at our #1 ranked need, but which required more time and data-intensive skills than current staff could provide (M-F7).\"</span>"
+    )
+
+txt.tr <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"Provide opportunities for new professionals to tackle “wicked” Wisconsin water challenges on a legislatively mandated water issue.\" \"Provide experience and leadership on the practice of actionable science.\"</span>"
+  )
+
+
+txt.bl <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"Insight into the leap from scientific insight to management and policy, and what I need to understand about people, institutions, and systems to translate my science into action (F5).\"</span>"
+  )
+
+txt.bm <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"It’s been an absolute game changer. The fellows have brought new perspectives and new scientific methods, and it's safe to say we couldn't accomplish what we've accomplished thus far without them (M-F5).\"</span>"
+  )
+
+txt.br <- plot_responces(
+  responce_text = 
+    "<span style='font-size:8pt'>\"We got reportable impacts in our professional development goals for training the next generation and in our WRI goals related to science-informed water resource management on a very contentious water quantity challenge for the state.\"</span>"
+  )
+
+```
+
+```{r panel}
+
+top <- 
+  title + p.map.gwsw + 
+  plot_layout(widths = c(0.7, .3))
+
+mid <- 
+  logistics + 
+  pie_plots %>% pull(plot) %>% pluck(2) + 
+  timeline_plots %>% pull(plot) %>% pluck(2) + 
+  plot_layout(widths = c(.4, .2, .3)) 
+
+bottom_head <- 
+  (txt.goal.head | txt.goal.h1 | txt.goal.h2 | txt.goal.h3) + 
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+bottom <- 
+  ((txt.goal / txt.outcome) | 
+    (txt.tl / txt.bl) |
+    (txt.tm / txt.bm) |
+    (txt.tr / txt.br)) +
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+panel <- 
+  top / mid / bottom_head / bottom + 
+  plot_layout(heights = c(.25, .2, .05, .5))
+
+panel
+
+```
+
+```{r save panel}
+
+path <- here::here("plots", "fig04_groundwater")
+ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+```
+
+
+# Emerging contaminants
+
+```{r title}
+title <- 
+  plot_title(responce_text =
+  "<span style='font-size:16pt;color:#000000'>**Emerging Contaminants**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Emerging contaminants (e.g., pesticides, PFAS) are of concern in Wisconsin, but by definition much is unknown about their extent and toxicological effects. Fellows develop protective groundwater standards, delineate the extent of contamination, and improve toxicological understanding of new and emerging contaminants.</span>"
+  )
+```
+
+```{r logistics}
+
+logistics <- plot_logistics(
+  responce_text =
+  "<span style='font-size:12pt;color:#000000'>**Fellowship Logistics**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>One fellow at WI-DHS developed groundwater standards, another at UW-Madison investigated the extent of PFAS contamination in Green Bay, and three fellows at the US EPA explored toxicological effects on ecosystems and human health.</span>"
+  ) 
+
+```
+
+```{r responces}
+
+
+txt.tl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"To work with EPA experts to apply my scientific and technical expertise to develop quantitative tools to improve ecological risk assessment of contaminants (F12).\"</span>")
+
+txt.tm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"To contribute to the development of an early career scientist with interest in ecotoxicology and to hire someone with a high degree of expertise to further develop an ecotoxicological model for fish (M-F12).\"</span>")
+
+txt.tr <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Provide an opportunity for a scientist to apply expertise to statewide challenges and learn how to do science that informs policy, as it is done in collaboration with resource managers with whom the fellow has built trust.\"</span>")
+
+
+
+txt.bl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Keeping an open line of communication and being part of this bridge between academia and a state agency has really pushed us to accomplish mutually beneficial work (F11).\"</span>")
+
+txt.bm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Without the fellow’s insights & expertise, this would not have been a successful project. We were also able to apply for a CDC grant to enhance our capacity to address health hazards (M-F10).\"</span>")
+
+txt.br <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"The fellow provided leadership in helping the state develop PFAS groundwater standards. We made great connections with a new state agency that has led to new fellowships in other water areas and hired the fellow as a permanent scientist.\"</span>")
+
+```
+
+```{r panel}
+
+top <- 
+  title + p.map.ec + 
+  plot_layout(widths = c(0.7, .3))
+
+mid <- 
+  logistics + 
+  pie_plots %>% pull(plot) %>% pluck(3) + 
+  timeline_plots %>% pull(plot) %>% pluck(4) + 
+  plot_layout(widths = c(.4, .2, .3)) 
+
+bottom_head <- 
+  (txt.goal.head | txt.goal.h1 | txt.goal.h2 | txt.goal.h3) + 
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+bottom <- 
+  ((txt.goal / txt.outcome) | 
+    (txt.tl / txt.bl) |
+    (txt.tm / txt.bm) |
+    (txt.tr / txt.br)) +
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+panel <- 
+  top / mid / bottom_head / bottom + 
+  plot_layout(heights = c(.25, .2, .05, .5))
+
+panel
+
+```
+
+```{r save panel}
+
+path <- here::here("plots", "fig05_contaminants")
+ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+```
+
+
+# Water Quality
+
+```{r title}
+title <- 
+  plot_title(responce_text =
+  "<span style='font-size:16pt;color:#000000'>**Water Quality**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Two of the most common causes of impairment in WI streams are phosphorus and suspended solids. But both of these are highly dynamic, fluctuating with precipitation, runoff, and stream discharge. Fellows developed models and tools that predict stream water quality to lay groundwork for setting new water quality standards.</span>"
+  )
+```
+
+```{r logistics}
+
+logistics <- plot_logistics(
+  responce_text =
+  "<span style='font-size:12pt;color:#000000'>**Fellowship Logistics**</span></b><br>
+  <span style='font-size:11pt;color:#737373'>Two fellows at the DNR Bureau of Water Quality, with the second fellow’s models building off those of the first. Additionally, the first fellow built an online application, and the second incorporated visual story-telling techniques into policy communications.</span>"
+  ) 
+
+```
+
+```{r responces}
+
+txt.tl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Dip a toe into science-policy in an agency setting to see how it felt, while adding to my analysis and application development skill sets and research portfolio (F8).\"</span>")
+
+txt.tm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"My goal was to conduct cutting-edge research and package the results in a format that would be directly usable by agency staff (M-F8,F9).\"</span>")
+
+txt.tr <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Provide an opportunity for fellows to make scientific contributions and to develop relationships and trust with water resource managers across the state so that they learned how to make the science actionable.\"</span>")
+
+txt.bl <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"I haven’t left the DNR since my fellowship. I’ve found a work setting where my skills and knowledge help make a difference, while maintaining work-life balance (F8).\"</span>")
+
+txt.bm <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Both water quality fellows brought new perspectives to our program. Their contributions over a short timeframe will have lasting benefits in a wide variety of program activities (M-F8,F9).\"</span>")
+
+txt.br <- plot_responces(
+  responce_text = "<span style='font-size:8pt'>\"Fellows provided leadership in understanding stream water quality, learned how to do science that served stakeholders, and learned how to do science in a way that leads to societal impacts, a Sea Grant and WRI goal.\"</span>")
+
+```
+
+```{r panel}
+
+top <- 
+  title + p.map.wq + 
+  plot_layout(widths = c(0.7, .3))
+
+mid <- 
+  logistics + 
+  pie_plots %>% pull(plot) %>% pluck(1) + 
+  timeline_plots %>% pull(plot) %>% pluck(3) + 
+  plot_layout(widths = c(.4, .2, .3)) 
+
+bottom_head <- 
+  (txt.goal.head | txt.goal.h1 | txt.goal.h2 | txt.goal.h3) + 
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+bottom <- 
+  ((txt.goal / txt.outcome) | 
+    (txt.tl / txt.bl) |
+    (txt.tm / txt.bm) |
+    (txt.tr / txt.br)) +
+  plot_layout(widths = c(.2,.3,.3,.3))
+
+panel <- 
+  top / mid / bottom_head / bottom + 
+  plot_layout(heights = c(.25, .2, .05, .5))
+
+panel
+
+```
+
+```{r save panel}
+
+path <- here::here("plots", "fig06_waterqual")
+ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+```
+

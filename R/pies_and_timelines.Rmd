@@ -1,0 +1,118 @@
+---
+title: "pies and timelines"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r prep, message=FALSE, warning=FALSE}
+library(tidyverse)
+# library(googlesheets4)
+library(vistime)
+
+source(here::here("R", "fx_pie_chart.R"))
+source(here::here("R", "fx_timeline.R"))
+source(here::here("R", "col_palette.R"))
+
+```
+
+## Data
+
+```{r read}
+
+# ## original read from drive
+# gs4_deauth()
+# df_fellows <- 
+#   read_sheet(
+#     "https://docs.google.com/spreadsheets/d/1F-771A6sUjqhxtGQyJ96-M3eTsfJ48is8mLTHF8oVEk/edit#gid=0", 
+#     sheet = "Sheet2")
+# 
+# ## save to file
+# write_csv(df_fellows, here::here("fellowship", "data", "fellow_data.csv"))
+
+## read saved data
+df_fellows <- read_csv(here::here("data", "fellow_data.csv"))
+
+```
+
+```{r clean}
+
+df_fellows <- df_fellows %>% 
+  mutate(Group = if_else(Group == "GW/SW/Fisheries", "GW_SW_Fisheries", Group))
+
+```
+
+
+## Pie charts
+
+```{r prep-pie-df}
+
+df_pie <- 
+  df_fellows %>% 
+  select(-start, -end, -host) %>% 
+  pivot_longer(4:11, names_to = "group", values_to = "value") %>% 
+  filter(value != 0)
+
+```
+
+```{r prep-pie-df-subsets}
+
+df_pie_subs <- 
+  df_pie %>% 
+  select(-Fellow) %>% 
+  group_by(Group, group) %>% 
+  summarise(sum = sum(value), .groups = "drop") %>% 
+  arrange(desc(Group, group)) %>% 
+  mutate(value =  round((sum/sum(sum) * 100), 0)) 
+
+```
+
+```{r make-pie-plots}
+
+pie_plots <- 
+  df_pie_subs %>% 
+  group_by(Group) %>% 
+  nest() %>% 
+  mutate(plot = map(data, ~ pie_bake_fellows(data = .x)))
+
+# check
+# pie_plots %>%
+#   pull(plot) %>%
+#   pluck(3)
+
+```
+
+## Timelines
+
+```{r prep-timeline-df}
+
+df_tl <- 
+  df_fellows %>% 
+  mutate(across(where(is.character), as.factor)) %>% 
+  select(1:6) %>% 
+  left_join(colz, by = c("host" = "group")) %>% 
+  mutate(index = 1:nrow(df_fellows)) %>% 
+  mutate(Fellow = paste0("F", index, sep = "")) %>% 
+  select(-index) %>% 
+  mutate(fontcolor = "black")
+
+```
+
+```{r make-tl-plots}
+
+timeline_plots <- 
+  df_tl %>% 
+  group_by(Group) %>% 
+  nest() %>% 
+  mutate(plot = map2(data, Group, ~ gg_vistime_fellows(data = .x, title = Group)))
+
+# check
+# timeline_plots %>%
+#   pull(plot) %>%
+#   pluck(1)
+
+```

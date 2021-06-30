@@ -1,0 +1,256 @@
+---
+title: "data panel figure"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r prep, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(wdnr.gis)
+library(patchwork)
+library(sf)
+```
+
+## data 
+
+```{r trout-surveys}
+
+df_surveys <- 
+  readRDS(here::here("data", "fmdb_surveys_trout.rds")) %>% 
+  filter(survey.seq.no != 343219904)
+
+# calucalte surveys per site
+surveys_per_site <- 
+  df_surveys %>% 
+  group_by(site.seq.no) %>% 
+  tally(sort = TRUE) 
+
+# prep data
+df_surveys <- 
+  df_surveys %>% 
+  distinct(site.seq.no, .keep_all = TRUE) %>% 
+  left_join(surveys_per_site, by = "site.seq.no") %>% 
+  sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326) 
+
+```
+
+```{r springs}
+
+# Spring locations as surveyed by WGNHS between 2014 and 2017
+springs_high <- 
+  get_spatial_layer(list_urls(sections = "DG_HiCap")[4]) %>% 
+  mutate(flow_group = "CFS > 1")
+springs_mid <- 
+  get_spatial_layer(list_urls(sections = "DG_HiCap")[5]) %>% 
+  mutate(flow_group = "0.25 < CFS < 1")
+springs_low <- 
+  get_spatial_layer(list_urls(sections = "DG_HiCap")[6]) %>% 
+  mutate(flow_group = "CFS <= 0.25")
+
+# Bind the layers together
+springs <- 
+  rbind(springs_high, springs_mid, springs_low) %>% 
+  mutate(flow_group = as_factor(flow_group)) %>% 
+  mutate(flow_group = fct_relevel(flow_group, "CFS <= .25", ".25 < CFS < 1", "CFS > 1")) 
+
+
+```
+
+```{r flows}
+
+df_flows <- 
+  read_csv(here::here("data", "WI_flow_stations.csv")) %>% 
+  janitor::clean_names() %>% 
+  sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  mutate(station_type = case_when(
+      station_type == "fewer than 10 measurements" ~ "<10 measures", 
+      station_type == "less than 1 year" ~ "<1 year", 
+      station_type == "less than 10 years" ~ "<10 years", 
+      station_type == "more than 10 years" ~ ">10 years"
+    )) %>% 
+  mutate(station_type = as_factor(station_type)) %>% 
+  mutate(station_type = fct_relevel(station_type, "<10 measures", "<1 year", "<10 years", ">10 years")) 
+
+
+```
+
+```{r temps}
+df_temps <- 
+  read_csv(here::here("data", "WI_temp_stations.csv")) %>% 
+  janitor::clean_names() %>% 
+  sf::st_as_sf(coords = c("lon", "lat"), crs = 4326)
+```
+
+```{r groundwater}
+library(dataRetrieval)
+
+#All GW monitoring locations in WI, including elevation and DTW
+WI_GWL_Loc <- 
+  whatNWISsites(
+    stateCd = "WI", 
+    service='gwlevels'
+    )
+
+# DF of all USGS GW monitoring data. Note start/end dates
+WI_GW_df <- 
+  readNWISgwl(
+    WI_GWL_Loc$site_no,
+    startDate = '2000-01-01', 
+    endDate = '2020-12-31'
+    )
+
+# calucalte surveys per site
+surveys_per_GWsite <- 
+  WI_GW_df %>% 
+  group_by(site_no) %>% 
+  tally(sort = TRUE)
+
+hist(surveys_per_GWsite$n)
+
+  # in DF, $lev_va is the feet below land surface. 
+  # $sl_lev_va is supposed to be feet above vertical datum, but query does not work right now.
+  # use the attributes (below) or DEM info to convert to an actual elevation.
+
+# GW Location attribute info, notably lat/long, land surf elevation, and datums
+WI_GW_Loc_Attr <- attr(WI_GW_df,'siteInfo')
+
+  # $alt_va is altitude value
+  # $alt_datum_cd is altitude datum
+  # $alt_meth_cd is method for determining altitude. See: https://help.waterdata.usgs.gov/code/alt_meth_cd_query?fmt=html
+
+gw_wi <- 
+  st_as_sf(WI_GW_Loc_Attr, coords = c("dec_long_va", "dec_lat_va"), crs=4629) %>% 
+  left_join(surveys_per_GWsite, by = "site_no")
+
+# ggplot()+
+#   geom_sf(data = wi_poly)+
+#   geom_sf(data = gw_wi, aes(color = agency_cd))
+
+
+```
+
+```{r streams}
+
+## WI
+state_wi <- wi_poly %>% st_transform(crs = 3071)
+
+### streams
+streams <- 
+  sf::st_read(dsn = here::here("data", "spatial", "24K_Hydro.gdb"), 
+          layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
+  janitor::clean_names() 
+
+streams_wi <- 
+  streams %>% 
+  sf::st_zm() %>% 
+  sf::st_simplify(dTolerance = 2000) %>% 
+  sf::st_simplify(dTolerance = 2000) %>% 
+  sf::st_intersection(state_wi) 
+
+
+streams_wi <- 
+  streams_wi %>% 
+  filter(hydrotype %in% c(503,508)) %>%  
+  mutate(stream_order = factor(stream_order)) %>%
+  filter(!is.na(stream_order))  
+
+# make a simple version for quick plotting
+streams_wi_simp <- 
+  streams_wi %>% 
+  filter(stream_order %in% c(5:8)) 
+
+# make a simple version for quick plotting
+streams_wi_3up <- 
+  streams_wi %>% 
+  filter(stream_order %in% c(3:8)) 
+
+```
+
+
+## plots
+
+```{r plot theme}
+
+theme_set(theme_void(base_family = "sans"))
+theme_update(
+    axis.text = element_blank(),
+    plot.margin = margin(0,2,0,0), 
+    legend.position = "none"
+    )
+
+```
+
+```{r}
+point.size = 0.05
+wi.poly.size = 0.25
+col.strm.order <- RColorBrewer::brewer.pal(n=9,"Blues")
+col.big.water <- col.strm.order[7]
+
+
+p.1 <- ggplot() +
+  geom_sf(data = state_wi, color = "grey85", size = wi.poly.size, alpha = 0) +
+  geom_sf(data = streams_wi_simp, aes(color = stream_order), size = 0.1) +
+  scale_color_manual(values = col.strm.order[6:9])
+
+p.2 <- 
+  ggplot() +
+  geom_sf(data = wi_poly, color = "grey85", alpha = 0, size = wi.poly.size) + 
+  geom_sf(data = df_surveys %>% filter(n <= 4), size = point.size, shape = 16,
+          color = "black", fill = "gray", alpha = 0.1) +
+  geom_sf(data = df_surveys %>% filter(n >= 5), aes(color = n), size = point.size, alpha = 0.5) + 
+  scale_color_viridis_c(option = "D", guide = FALSE) 
+
+p.3 <- 
+  ggplot() +
+  geom_sf(data = wi_poly, color = "grey85", alpha = 0, size = wi.poly.size) + 
+  geom_sf(data = springs, aes(color = flow_group), size = point.size, alpha = 0.4) + 
+  scale_color_viridis_d(option = "A", guide = FALSE) 
+
+p.4 <- 
+  ggplot() + 
+  geom_sf(data = wi_poly, color = "grey85", alpha = 0, size = wi.poly.size) + 
+  geom_sf(data = df_flows %>% filter(station_type == "<10 measures"), 
+          size = point.size, shape = 21, color = "black", fill = "gray", alpha = 0.1) + 
+  geom_sf(data = df_flows %>% filter(station_type != "<10 measures"), aes(color = station_type), 
+          size = point.size, alpha = 0.5) + 
+  scale_color_viridis_d(option = "C", guide = FALSE) 
+
+p.5 <- 
+  ggplot() + 
+  geom_sf(data = wi_poly, color = "grey85", alpha = 0, size = wi.poly.size) + 
+  geom_sf(data = gw_wi, size = point.size, color = "lightblue", shape = 17) 
+
+p.6 <- 
+  ggplot() +
+  geom_sf(data = wi_poly, color = "grey85", alpha = 0, size = wi.poly.size) + 
+  geom_sf(data = df_temps, aes(color = site_type), size = point.size, alpha = 0.5) + 
+  scale_color_viridis_d(guide = FALSE)
+
+```
+
+
+## panel 
+
+``` {r panel}
+
+panel <- p.1 | p.2 | p.3 | p.4 | p.5 | p.6
+
+panel
+
+
+````
+
+```{r save panel}
+path <- here::here("plots", "data_map_panel")
+ggsave(glue::glue("{path}.pdf"), width = 4.85, height = 0.80, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"), 
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+```
+

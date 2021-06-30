@@ -1,0 +1,276 @@
+---
+title: "maps"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r prep, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(sf)
+library(wdnr.gis)
+```
+
+## Data
+
+```{r data}
+
+## state boarders
+
+state_wi_cnty <- wi_counties %>% st_transform(crs = 3071)
+
+state_wi <- wi_poly %>% st_transform(crs = 3071)
+
+state_mi <- 
+  st_read(here::here("data", "spatial", "state-boarders", "michigan.shp" )) %>% 
+  st_transform(crs = 3071) %>% 
+  mutate(state = "michigan") %>% 
+  group_by(state) %>% 
+  summarise()
+
+state_mn <- 
+  st_read(here::here("data", "spatial", "state-boarders", "minnesota.shp" )) %>% 
+  st_transform(crs = 3071)
+
+state_io <- 
+  st_read(here::here("data", "spatial", "state-boarders", "iowa.shp" )) %>% 
+  st_transform(crs = 3071)
+
+state_il <- 
+  st_read(here::here("data", "spatial", "state-boarders", "illinois", "IL_BNDY_State_Py.shp" )) %>% 
+  st_transform(crs = 3071)
+
+## green bay watersheds
+
+gb_sheds <- 
+  wdnr.gis::watershed_lookup %>% 
+  filter(huc_codes %in% c("04030102", "04030204", "04030103", "04030104", "04030105", "04030108")) %>% 
+  pull(huc_codes) %>% 
+  map_df(~ get_watershed_layer(watershed_code = .x)) %>% 
+  janitor::clean_names() %>% 
+  st_transform(crs = 3071) %>% 
+  mutate(group = "gb_sheds") %>% 
+  group_by(group) %>% 
+  summarise() %>% 
+  st_intersection(state_wi) 
+
+# 24k flowlines
+streams <- 
+  st_read(dsn = here::here("data", "spatial", "24K_Hydro.gdb"), 
+          layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
+  janitor::clean_names() 
+
+streams_wi <- 
+  streams %>% 
+  st_zm() %>% 
+  st_simplify(dTolerance = 2000) %>% 
+  st_simplify(dTolerance = 2000) %>% 
+  st_intersection(state_wi) 
+
+# MS river
+river_ms <- 
+  st_read(here::here("data", "spatial", "MS-river", "mississippi-river.shp" )) %>% 
+  st_transform(crs = 3071)
+# %>% 
+#   st_zm() %>% 
+#   st_cast(to = "MULTIPOLYGON") %>% 
+#   st_make_valid() 
+
+# 24k polygons
+lakes <- 
+  st_read(dsn = here::here("data", "spatial", "24K_Hydro.gdb"), 
+              layer = "WD_HYDRO_WATERBODY_AR_24K") %>% 
+  janitor::clean_names() %>% 
+  st_zm()  %>% 
+  st_cast(to = "MULTIPOLYGON") %>% 
+  st_make_valid() 
+
+# central sands polygon
+poly_css <- 
+  st_read(here::here("data", "spatial", "central_sands", "Centrals_Sands_Boundary.shp")) %>% 
+  st_transform(crs = 3071)
+
+
+```
+
+```{r prep data}
+# lines ========================================================
+streams_wi <- 
+  streams_wi %>% 
+  filter(hydrotype %in% c(503,508)) %>%  
+  mutate(stream_order = factor(stream_order)) %>%
+  filter(!is.na(stream_order))  
+
+# make a simple version for quick plotting
+streams_wi_simp <- 
+  streams_wi %>% 
+  filter(stream_order %in% c(6:8)) 
+
+# make a simple version for quick plotting
+streams_wi_3up <- 
+  streams_wi %>% 
+  filter(stream_order %in% c(3:8)) 
+
+
+# lakes =========================================================
+
+# clip waterbodies by state boarder
+lakes_wi <-
+  lakes %>% 
+  filter(hydrotype %in% c(706, 707) & shape_area > 5) %>% 
+  filter(!waterbody_name %in% c("Lake Michigan", "Lake Superior")) %>% 
+  st_intersection(state_wi)
+
+lakes_wi_huge <- filter(lakes_wi, shape_area > 5000000)
+lakes_wi_med <- filter(lakes_wi, shape_area > 500000)
+
+# glakes object for plotting
+lakes_gl <- filter(lakes, waterbody_name %in% c("Lake Michigan", "Lake Superior"))
+
+
+# wi centrtoid buffer =========================================================
+
+# buffer for WI state
+state_wi_buff <- st_buffer(state_wi, dist = 5000)
+
+# WI centroid and buffer
+wi_centroid <- st_centroid(state_wi)
+wi_centroid_buff <- st_buffer(wi_centroid, dist = 300000) 
+
+
+# buffer for GL coast =========================================================
+
+lakes_gl_buff <- lakes %>%
+  filter(waterbody_name %in% c("Lake Michigan", "Lake Superior")) %>% 
+  st_intersection(state_wi_buff) %>%
+  st_buffer(dist = 5000)
+
+lakes_gl_buff2 <- lakes %>%
+  filter(waterbody_name %in% c("Lake Michigan", "Lake Superior")) %>% 
+  st_intersection(state_wi_buff) %>% 
+  st_buffer(dist = 8000)
+
+
+
+# wi buffer clips =========================================================
+
+# clip glakes
+lakes_gl_clp <- lakes_gl %>% st_intersection(wi_centroid_buff)
+# %>%
+#   st_intersection(st_set_crs(st_as_sf(as(raster::extent(-94, -85, 42.49628, 50), "SpatialPolygons")),
+#                              st_crs(lakes_24k_gl)))
+
+# clip 
+state_mi <- st_intersection(state_mi, wi_centroid_buff)
+state_mn <- st_intersection(state_mn, wi_centroid_buff)
+state_io <- st_intersection(state_io, wi_centroid_buff)
+state_il <- st_intersection(state_il, wi_centroid_buff)
+river_ms <- st_intersection(river_ms, wi_centroid_buff)
+
+
+# buffer for gw/sw/fishereis
+poly_gwsw_circle <- st_buffer(wi_centroid, dist = 250000) 
+poly_gwsw_detail <- st_buffer(state_wi, 10000)
+poly_gwsw_detail1 <- st_buffer(state_wi, 9500)
+# poly_gwsw_detail1 <- st_buffer(state_wi, -10000)
+
+```
+
+## Maps
+
+```{r testmap}
+# ggplot() + 
+#   ## geoms
+#   geom_sf(data = streams_wi_simp, aes(color = stream_order), size = 1) +
+#   geom_sf(data = lakes_wi_huge, fill = "#08519c", color = "#08519c") +
+#   geom_sf(data = state_wi, color = "white", fill = "white", alpha = 0) +
+#   ## coord and scales
+#   scale_color_brewer(palette = "Blues") 
+
+# path <- here::here("plots", "fellow_basemap")
+# ggsave(glue::glue("{path}.pdf"), width = 15, height = 18, device = cairo_pdf)
+# pdf_convert(pdf = glue::glue("{path}.pdf"), 
+#             filenames = glue::glue("{path}.png"),
+#             format = "png", dpi = 150)
+```
+
+```{r make-map-theme}
+theme_map <- 
+  theme_void() + 
+  theme(
+    plot.margin = margin(0,0,0,50), 
+    legend.position = "none",
+    axis.text = element_blank()
+    )
+
+# get all blues from the blues scale
+col.strm.order <- RColorBrewer::brewer.pal(n=9,"Blues")
+# set as same as highest stream order
+col.big.water <- col.strm.order[7]
+col.blobs <- "yellow"
+```
+
+```{r basemap-simple}
+p.simple <- ggplot() +
+  geom_sf(data = state_io, color = "grey85", size = 1, alpha = 0) +
+  geom_sf(data = state_il, color = "grey85", size = 1, alpha = 0) +
+  geom_sf(data = state_mn, color = "grey85", size = 1, alpha = 0) +
+  geom_sf(data = state_mi, color = "grey85", size = 1, alpha = 0) +
+  geom_sf(data = state_wi, color = "grey85", size = 1, alpha = 0) +
+  geom_sf(data = wi_centroid_buff, alpha = 0, color = "grey85", size = 1.75) + 
+  scale_color_manual(values = col.strm.order[5:7]) +
+  theme_map
+
+# p.simple
+```
+
+```{r basemap-full}
+
+p <- ggplot() +
+  geom_sf(data = state_io, color = "grey85", size = .6, alpha = 0) +
+  geom_sf(data = state_il, color = "grey85", size = .6, alpha = 0) +
+  geom_sf(data = state_mn, color = "grey85", size = .6, alpha = 0) +
+  geom_sf(data = state_mi, color = "grey85", size = .6, alpha = 0) +
+  geom_sf(data = state_wi, color = "grey85", size = .6, alpha = 0) +
+  geom_sf(data = lakes_gl_clp, color = col.big.water, fill = col.big.water) +
+  geom_sf(data = streams_wi_simp, aes(color = stream_order), size = 0.5) +
+  geom_sf(data = lakes_wi_huge, fill = col.big.water, color = col.big.water) +
+  geom_sf(data = river_ms, color = col.big.water, size = 0.55)+
+  geom_sf(data = wi_centroid_buff, alpha = 0, color = "grey60") + 
+  scale_color_manual(values = col.strm.order[5:7]) +
+  theme_map
+
+```
+
+```{r make-plots}
+highlight_boarder_size = .6
+
+p.map.gwsw <- 
+  p +
+  geom_sf(data = state_wi, fill = col.blobs, color = "black", alpha = 0.3, size = highlight_boarder_size) +
+  geom_sf(data = poly_css, fill = col.blobs, color = "black", alpha = 0.3, size = highlight_boarder_size)
+# p.map.gwsw
+
+p.map.cp <- 
+  p +
+  geom_sf(data = lakes_gl_buff2, fill = col.blobs, color = "black", alpha = 0.9, size = highlight_boarder_size)
+# p.map.cp
+
+p.map.wq <- 
+  p +
+  geom_sf(data = state_wi, fill = col.blobs, color = "black", alpha = 0.3, size = highlight_boarder_size) 
+# p.map.wq
+
+p.map.ec <- 
+  p +
+  geom_sf(data = state_wi, fill = col.blobs, color = "black", alpha = 0.3, size = highlight_boarder_size) + 
+  geom_sf(data = gb_sheds, fill = col.blobs, color = "black", alpha = 0.3, size = highlight_boarder_size)
+# p.map.ec
+
+```
+
